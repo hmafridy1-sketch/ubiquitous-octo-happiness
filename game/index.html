@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Coffee Courier Planet</title>
+<style>
+:root{--ink:#2a211c;--cream:#fff7e7;--coffee:#6f4025;--gold:#f5c86b;--mint:#bfe5c5;--sky:#a8d8f0}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#08151c;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}#game{position:fixed;inset:0}canvas{display:block}#hud{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:10px;pointer-events:none;z-index:3}.panel{background:rgba(255,247,231,.92);border:2px solid rgba(42,33,28,.12);border-radius:18px;padding:10px 13px;box-shadow:0 8px 24px #0003;backdrop-filter:blur(8px)}#title{font-weight:900;font-size:14px}#status{font-size:13px;margin-top:3px}.cups{display:flex;gap:5px}.cup{width:25px;height:25px;border-radius:8px;background:#fff;border:2px solid #7a5a45;display:grid;place-items:center;font-size:14px}.cup.full{background:#8b4b2d;color:#fff}.cup.delivered{opacity:.25}.tip{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:rgba(255,247,231,.94);padding:9px 14px;border-radius:999px;font-size:12px;font-weight:700;z-index:3;box-shadow:0 8px 20px #0003;pointer-events:none;white-space:nowrap}.touch{position:fixed;bottom:24px;left:20px;width:132px;height:132px;border-radius:50%;background:#fff5;border:2px solid #fff8;z-index:4;touch-action:none}.stick{position:absolute;width:58px;height:58px;border-radius:50%;left:37px;top:37px;background:#fff9;border:2px solid #fff}.action{position:fixed;right:24px;bottom:38px;width:74px;height:74px;border:0;border-radius:50%;background:#f0b957;color:#2a211c;font-weight:900;z-index:4;box-shadow:0 8px 20px #0004}.round{font-size:11px;opacity:.7}@media(min-width:800px){.touch,.action{display:none}.tip{font-size:13px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud"><div class="panel"><div id="title">☕ COFFEE COURIER PLANET</div><div id="status">Start at the café. Find four neighbors.</div><div class="round" id="round">Round 1 · 0/4 delivered</div></div><div class="panel cups" id="cups"></div></div>
+<div class="tip">WASD / arrows to walk · Space to deliver · explore stairs & bridges</div>
+<div class="touch" id="joy"><div class="stick" id="stick"></div></div><button class="action" id="deliver">DELIVER</button>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x08151c);
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.05,250);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.7)); renderer.setSize(innerWidth,innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; document.querySelector('#game').appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffe7c0,0x35556a,2.2)); const sun=new THREE.DirectionalLight(0xffe0b2,3); sun.position.set(12,20,8); scene.add(sun);
+
+const R=12, planet=new THREE.Group(); scene.add(planet);
+const earth=new THREE.Mesh(new THREE.SphereGeometry(R,48,32),new THREE.MeshStandardMaterial({color:0x77b983,roughness:1})); planet.add(earth);
+const ocean=new THREE.Mesh(new THREE.SphereGeometry(R-.07,40,28),new THREE.MeshStandardMaterial({color:0x8fc9d8,roughness:1,wireframe:false})); ocean.scale.set(.995,.995,.995); planet.add(ocean);
+
+function latLon(lat,lon,r=R+.08){const a=THREE.MathUtils.degToRad(lat),b=THREE.MathUtils.degToRad(lon);return new THREE.Vector3(r*Math.cos(a)*Math.cos(b),r*Math.sin(a),r*Math.cos(a)*Math.sin(b));}
+function orientTo(v,obj){obj.position.copy(v); obj.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize());}
+function box(name,lat,lon,w,h,d,color=0xd99d62){const p=latLon(lat,lon);const g=new THREE.Group();g.name=name;g.add(new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.85})));orientTo(p,g);planet.add(g);return g}
+function tree(lat,lon){const g=new THREE.Group();const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.11,.15,.8,7),new THREE.MeshStandardMaterial({color:0x815234}));trunk.position.y=.4;g.add(trunk);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(.55,1),new THREE.MeshStandardMaterial({color:0x4d9b65}));crown.position.y=1.05;g.add(crown);orientTo(latLon(lat,lon,R+.08),g);planet.add(g)}
+
+// Modular world zones: café/town + quiet green belt + bridges/upper floors.
+box('cafe',12,0,2.5,1.6,2.1,0xf0b86a); box('cafeRoof',12,0,2.7,.35,2.3,0x8c4f32).position.y=1.05;
+for(const [lat,lon] of [[13,8],[11,-8],[15,16],[9,-17],[7,25],[-2,31],[-8,35],[-12,28],[-15,18],[-11,4],[-6,-10],[1,-24],[8,-31]]) tree(lat,lon);
+for(const [lat,lon] of [[16,12],[18,24],[14,34],[4,42],[-8,46],[-18,40],[-20,25],[-17,8],[-5,-2],[7,-12],[16,-22],[20,-8]]) box('house',lat,lon,1.1,1.0,1.0,[0xf2c58a,0xc98b62,0xb4d89a][Math.floor(Math.random()*3)]);
+// Upper floors / stair towers.
+for(const [lat,lon] of [[15,12],[4,42],[-17,8]]){const g=box('upper',lat,lon,1.2,2.7,1.2,0xc9825a);const step=new THREE.Mesh(new THREE.BoxGeometry(.65,.14,1.5),new THREE.MeshStandardMaterial({color:0xf4d7a4}));for(let i=0;i<7;i++){const s=step.clone();s.position.set(-.35+i*.1,i*.22,-.8+i*.18);g.add(s)}}
+// Bridges are simple modular arches crossing the globe.
+for(const [lat,lon] of [[-2,31],[7,-12],[16,24]]){const b=box('bridge',lat,lon,3.8,.22,.55,0xd8a15d);b.rotation.z=.1}
+
+// Café machine and counter near spawn.
+const machine=new THREE.Group();machine.name='coffeeMachine';machine.add(new THREE.Mesh(new THREE.BoxGeometry(.7,.9,.5),new THREE.MeshStandardMaterial({color:0x4b4b4b,metalness:.35,roughness:.3})));machine.add(new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,.5,12),new THREE.MeshStandardMaterial({color:0xe4b65f})));machine.position.set(-.8,1.0,.5);scene.add(machine);
+
+function pet(color,accent){const g=new THREE.Group();const body=new THREE.Mesh(new THREE.SphereGeometry(.48,12,10),new THREE.MeshStandardMaterial({color,roughness:.8}));body.scale.set(1.1,.8,.85);g.add(body);const head=new THREE.Mesh(new THREE.SphereGeometry(.42,12,10),new THREE.MeshStandardMaterial({color,roughness:.8}));head.position.y=.52;g.add(head);for(const x of [-.18,.18]){const e=new THREE.Mesh(new THREE.SphereGeometry(.055,8,6),new THREE.MeshStandardMaterial({color:0x181818}));e.position.set(x,.6,.36);g.add(e)}for(const x of [-.28,.28]){const ear=new THREE.Mesh(new THREE.ConeGeometry(.13,.3,6),new THREE.MeshStandardMaterial({color:accent}));ear.position.set(x,.88,.05);g.add(ear)}return g}
+
+const courier=pet(0x292d35,0xf0a83e);courier.name='CodexCourier';scene.add(courier);
+const coffeeGroup=new THREE.Group();courier.add(coffeeGroup);
+function makeCup(i){const g=new THREE.Group();const cup=new THREE.Mesh(new THREE.CylinderGeometry(.13,.11,.26,12),new THREE.MeshStandardMaterial({color:0xfff4dd}));cup.position.y=.18;g.add(cup);const lid=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.045,12),new THREE.MeshStandardMaterial({color:0x5b3526}));lid.position.y=.34;g.add(lid);g.position.set((i%2)*.25-.12,.15,Math.floor(i/2)*.25-.12);return g}
+for(let i=0;i<4;i++)coffeeGroup.add(makeCup(i));
+
+const neighborDefs=[['Mochi',0xf2a6b3,12,20],['Bean',0x8f6b54,4,42],['Pip',0x88b6d9,-12,28],['Clover',0xb6d58a,-15,8]];
+const neighbors=[]; neighborDefs.forEach(([name,c,lat,lon],i)=>{const g=pet(c,0xf5c86b);g.name=name;g.userData={lat,lon,index:i,delivered:false};orientTo(latLon(lat,lon,R+.55),g);planet.add(g);neighbors.push(g)});
+
+let lat=12,lon=3,round=1,delivered=0;const keys={};let joy={x:0,y:0};
+function setPlayerPosition(){const p=latLon(lat,lon,R+.62);courier.position.copy(p);courier.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),p.clone().normalize());}
+setPlayerPosition();
+function distance(a,b){const v1=latLon(a.userData.lat,a.userData.lon,1).normalize(),v2=latLon(lat,lon,1).normalize();return v1.angleTo(v2)}
+function updateCups(){const el=document.querySelector('#cups');el.innerHTML='';for(let i=0;i<4;i++){const c=document.createElement('div');c.className='cup '+(i<delivered?'delivered':'full');c.textContent=i<delivered?'✓':'☕';el.appendChild(c)}document.querySelector('#round').textContent=`Round ${round} · ${delivered}/4 delivered`}
+updateCups();
+function deliver(){let target=null,best=.18;for(const n of neighbors){if(n.userData.delivered)continue;const d=distance(n);if(d<best){best=d;target=n}}if(!target){document.querySelector('#status').textContent='Get closer to a neighbor pet to deliver.';return}target.userData.delivered=true;delivered++;target.scale.setScalar(1.22);document.querySelector('#status').textContent=`Delivered coffee to ${target.name}! Find the next neighbor.`;updateCups();if(delivered===4){document.querySelector('#status').textContent='Round complete! The café is ready for another round.';setTimeout(()=>{neighbors.forEach(n=>{n.userData.delivered=false;n.scale.setScalar(1)});delivered=0;round++;updateCups();document.querySelector('#status').textContent='Fresh round! Explore a new route around the planet.'},1800)}}
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space'){e.preventDefault();deliver()}});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);document.querySelector('#deliver').addEventListener('click',deliver);
+const joyEl=document.querySelector('#joy'),stick=document.querySelector('#stick');let active=false;joyEl.addEventListener('pointerdown',e=>{active=true;joyEl.setPointerCapture(e.pointerId)});joyEl.addEventListener('pointermove',e=>{if(!active)return;const r=joyEl.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let x=e.clientX-cx,y=e.clientY-cy;const m=Math.min(42,Math.hypot(x,y));if(m){x=x/Math.hypot(x,y)*m;y=y/Math.hypot(x,y)*m}joy.x=x/42;joy.y=y/42;stick.style.transform=`translate(${x}px,${y}px)`});joyEl.addEventListener('pointerup',()=>{active=false;joy.x=joy.y=0;stick.style.transform='translate(0,0)'});
+
+function move(dt){let x=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x;let y=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+joy.y;const m=Math.hypot(x,y);if(m){x/=m;y/=m;lon+=x*24*dt;lat-=y*18*dt;lat=Math.max(-48,Math.min(48,lat));if(lon>180)lon-=360;if(lon<-180)lon+=360;setPlayerPosition()}}
+
+let t=0;function animate(){requestAnimationFrame(animate);const dt=Math.min(.035,(performance.now()-t)/1000||.016);t=performance.now();move(dt);planet.rotation.y+=dt*.012;courier.position.y+=Math.sin(t*.004)*.002;const cp=courier.position.clone().normalize();const desired=courier.position.clone().add(cp.multiplyScalar(4.4));camera.position.lerp(desired,.08);camera.lookAt(courier.position.clone().add(cp.multiplyScalar(.7)));renderer.render(scene,camera)}animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>
