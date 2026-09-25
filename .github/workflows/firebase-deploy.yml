@@ -56,3 +56,5 @@ jobs:
       - name: Remove temporary credentials
         if: always()
         run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
+
+# Trigger deployment after repository-secret configuration.
